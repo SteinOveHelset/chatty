@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta charset="utf-8"/>
+        <title>Chatty</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.2/css/bulma.min.css">
+    </head>
+
+    <body>
+        <section class="section">
+            <div class="container">
+                <div class="columns is-multiline">
+                    <div class="column is-6 is-offset-3 mb-6">
+                        <section class="hero is-primary">
+                            <div class="hero-body">
+                                <p class="title">
+                                    Chatty
+                                </p>
+                                <p class="subtitle">
+                                    A simple chat built with Django, Channels and Redis
+                                </p>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="column is-6 is-offset-3">
+                        <div class="box">
+                            <div id="chat-messages" style="max-height: 300px; overflow-y: scroll;">{% for m in messages %}<b>{{ m.username }}</b>: {{ m.content }}<br>{% endfor %}</div>
+                        </div>
+
+                        <div class="field">
+                            <div class="control">
+                                <input class="input" type="text" placeholder="Message" id="chat-message-input">
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <div class="control">
+                                <a class="button is-info" id="chat-message-submit">Submit</a>
+                            </div>
+                        </div>
+
+                        <small class="has-text-grey-light">Your username: {{ username }}</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+       {{ room_name|json_script:"json-roomname" }}
+       {{ username|json_script:"json-username" }}
+
+        <script>
+            function scrollToBottom() {
+                let objDiv = document.getElementById("chat-messages");
+                objDiv.scrollTop = objDiv.scrollHeight;
+            }
+
+            scrollToBottom();
+
+            const roomName = JSON.parse(document.getElementById('json-roomname').textContent);
+            const userName = JSON.parse(document.getElementById('json-username').textContent);
+
+            const chatSocket = new WebSocket(
+                'ws://'
+                + window.location.host
+                + '/ws/'
+                + roomName
+                + '/'
+            );
+
+            chatSocket.onmessage = function(e) {
+                console.log('onmessage');
+
+                const data = JSON.parse(e.data);
+
+                if (data.message) {
+                    document.querySelector('#chat-messages').innerHTML += ('<b>' + data.username + '</b>: ' + data.message + '<br>');
+                } else {
+                    alert('The message is empty!');
+                }
+
+                scrollToBottom();
+            };
+
+            chatSocket.onclose = function(e) {
+                console.log('The socket close unexpectadly');
+            };
+
+            document.querySelector('#chat-message-submit').onclick = function(e) {
+                const messageInputDom = document.querySelector('#chat-message-input');
+                const message = messageInputDom.value;
+
+                chatSocket.send(JSON.stringify({
+                    'message': message,
+                    'username': userName,
+                    'room': roomName
+                }));
+
+                messageInputDom.value = '';
+            };
+        </script>
+    </body>
+</html>
